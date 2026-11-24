@@ -19,7 +19,35 @@ data/holidays.json    # праздники: "MM-DD", название, стра�
 output/               # дайджесты по дням (не в git)
 ```
 
-## Быстрый старт
+## Основной способ: локальный агент в Telegram (Hermes Agent)
+
+Агент работает на вашем компьютере на базе [Hermes Agent](https://github.com/NousResearch/hermes-agent):
+пишет в Telegram, помнит контекст, по утрам присылает 3 идеи и умеет менять профиль бренда, праздники и источники по запросу.
+
+```bash
+export CONTENT_TZ=Asia/Almaty      # ваш часовой пояс
+export CONTENT_TIME=08:00          # во сколько присылать идеи
+bash hermes/setup.sh               # ставит Hermes, навык и cron-задачу
+```
+
+Затем два шага, которые делаются вручную (секреты в репозиторий не попадают):
+
+1. `hermes model` — выбрать провайдера и ввести ключ модели (например, Anthropic).
+2. `hermes gateway setup` — ввести токен бота от @BotFather и свой Telegram user id,
+   после чего `hermes gateway install` (фоновая служба) или `hermes gateway run`.
+   В чате с ботом отправьте `/sethome`, чтобы утренние идеи приходили туда.
+
+Что умеет агент в чате:
+- «дай идеи» / «что постить сегодня» — 3 идеи с крючком, форматом и черновиком;
+- «добавь праздник …», «добавь тему …», «добавь источник …» — правит файлы в репозитории;
+- «какие праздники на этой неделе» — список из `data/holidays.json`.
+
+Проверка без ожидания утра: `hermes cron list`, затем `hermes cron run <id>`.
+
+Навык лежит в `hermes/skills/content-ideas/SKILL.md`, скрипт контекста — в `hermes/scripts/content_context.py`.
+Тот же контекст можно получить вручную: `python3 agent.py --context --date 2026-12-31`.
+
+## Быстрый старт (автономный режим, без Hermes)
 
 1. Заполните `config/brand.json` — название, аудиторию, тон, темы, «чего избегать».
 2. При необходимости поправьте `config/sources.json` и `data/holidays.json`.

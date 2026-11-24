@@ -261,17 +261,28 @@ def send_telegram(text: str) -> None:
 
 # ---------------------------------------------------------------- main
 
-def run(args: argparse.Namespace) -> int:
+def gather(today: dt.date) -> tuple[dict, list[dict], list[dict]]:
+    """Профиль бренда, ближайшие праздники и свежие новости (без LLM)."""
     brand = load_json(CONFIG_DIR / "brand.json")
     sources = load_json(CONFIG_DIR / "sources.json")
     holidays_all = load_json(DATA_DIR / "holidays.json")
-
-    today = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
-    model = os.getenv("CONTENT_AGENT_MODEL") or brand.get("model", DEFAULT_MODEL)
-
     holidays = upcoming_holidays(today, holidays_all, brand.get("markets", []),
                                  brand.get("holiday_horizon_days", 7))
     news = fetch_news(sources, brand.get("news_per_feed", 8))
+    return brand, holidays, news
+
+
+def run(args: argparse.Namespace) -> int:
+    today = dt.date.fromisoformat(args.date) if args.date else dt.date.today()
+
+    if args.context:
+        # Режим для Hermes: отдаём контекст агенту, он сам пишет идеи своей моделью.
+        brand, holidays, news = gather(today)
+        print(build_user_prompt(brand, holidays, news, today))
+        return 0
+
+    brand, holidays, news = gather(today)
+    model = os.getenv("CONTENT_AGENT_MODEL") or brand.get("model", DEFAULT_MODEL)
 
     ideas = None
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -309,6 +320,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="не вызывать модель, только собрать данные")
     parser.add_argument("--no-telegram", action="store_true",
                         help="не отправлять дайджест в Telegram")
+    parser.add_argument("--context", action="store_true",
+                        help="вывести контекст (бренд, праздники, новости) без вызова модели")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
